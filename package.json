@@ -1,0 +1,41 @@
+{
+  "name": "gerenciador-font",
+  "version": "1.0.0",
+  "description": "Gerenciador de fontes para macOS e Windows com integração ao Figma e outros aplicativos de design",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "verificar": "node verificar_compatibilidade.js"
+  },
+  "keywords": [
+    "font",
+    "manager",
+    "figma",
+    "photoshop",
+    "design"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "font-manager": "^0.3.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "electron": "^25.3.1",
+    "electron-builder": "^24.4.0"
+  },
+  "build": {
+    "appId": "com.gerenciadorfont.app",
+    "productName": "Gerenciador de Fontes",
+    "mac": {
+      "category": "public.app-category.utilities"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}

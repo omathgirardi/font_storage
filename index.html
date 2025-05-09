@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerenciador de Fontes</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="root"></div>
+  
+  <script>
+    // Importações necessárias para React
+    const React = require('react');
+    const ReactDOM = require('react-dom');
+    const { useState, useEffect } = React;
+    const { ipcRenderer } = require('electron');
+
+    // Componente principal da aplicação
+    function App() {
+      const [fonts, setFonts] = useState([]);
+      const [selectedFolder, setSelectedFolder] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [searchTerm, setSearchTerm] = useState('');
+      
+      // Carregar fontes ao iniciar
+      useEffect(() => {
+        loadFonts();
+      }, []);
+      
+      // Função para carregar fontes do sistema
+      async function loadFonts() {
+        setLoading(true);
+        try {
+          const systemFonts = await ipcRenderer.invoke('list-fonts');
+          setFonts(systemFonts.map(font => ({
+            ...font,
+            active: true,
+            system: true
+          })));
+        } catch (error) {
+          console.error('Erro ao carregar fontes:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+      
+      // Função para selecionar pasta de fontes
+      async function selectFontFolder() {
+        const folder = await ipcRenderer.invoke('select-font-folder');
+        if (folder) {
+          setSelectedFolder(folder);
+          loadFolderFonts(folder);
+        }
+      }
+      
+      // Função para carregar fontes de uma pasta
+      async function loadFolderFonts(folder) {
+        setLoading(true);
+        try {
+          const folderFonts = await ipcRenderer.invoke('list-folder-fonts', folder);
+          setFonts(prevFonts => {
+            // Filtrar fontes do sistema para manter apenas elas
+            const systemFonts = prevFonts.filter(font => font.system);
+            // Adicionar as novas fontes da pasta
+            return [...systemFonts, ...folderFonts];
+          });
+        } catch (error) {
+          console.error('Erro ao carregar fontes da pasta:', error);
+        } finally {
+          setLoading(false);
+        }
+      }
+      
+      // Função para ativar/desativar uma fonte
+      async function toggleFont(index) {
+        const font = fonts[index];
+        const newStatus = !font.active;
+        
+        try {
+          let success;
+          if (newStatus) {
+            success = await ipcRenderer.invoke('activate-font', font.path);
+          } else {
+            success = await ipcRenderer.invoke('deactivate-font', font.path);
+          }
+          
+          if (success) {
+            setFonts(prevFonts => {
+              const newFonts = [...prevFonts];
+              newFonts[index] = { ...font, active: newStatus };
+              return newFonts;
+            });
+          }
+        } catch (error) {
+          console.error('Erro ao alternar estado da fonte:', error);
+        }
+      }
+      
+      // Filtrar fontes com base na pesquisa
+      const filteredFonts = fonts.filter(font => 
+        font.name && font.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      
+      return (
+        <div className="container">
+          <header className="header">
+            <h1>Gerenciador de Fontes</h1>
+            <div className="actions">
+              <button onClick={selectFontFolder} className="btn primary">
+                Selecionar Pasta de Fontes
+              </button>
+              {selectedFolder && (
+                <p className="selected-folder">Pasta: {selectedFolder}</p>
+              )}
+            </div>
+            <div className="search-bar">
+              <input 
+                type="text" 
+                placeholder="Pesquisar fontes..." 
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </header>
+          
+          <main className="font-list-container">
+            {loading ? (
+              <div className="loading">Carregando fontes...</div>
+            ) : (
+              <div className="font-list">
+                {filteredFonts.length > 0 ? (
+                  filteredFonts.map((font, index) => (
+                    <div key={index} className={`font-item ${font.active ? 'active' : 'inactive'}`}>
+                      <div className="font-info">
+                        <h3 className="font-name">{font.name}</h3>
+                        <p className="font-path">{font.path}</p>
+                      </div>
+                      <div className="font-actions">
+                        <button 
+                          onClick={() => toggleFont(index)}
+                          className={`btn ${font.active ? 'danger' : 'success'}`}
+                        >
+                          {font.active ? 'Desativar' : 'Ativar'}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="no-fonts">Nenhuma fonte encontrada</div>
+                )}
+              </div>
+            )}
+          </main>
+          
+          <footer className="footer">
+            <p>Gerenciador de Fontes v1.0.0</p>
+          </footer>
+        </div>
+      );
+    }
+    
+    // Renderizar o aplicativo React
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
